@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>healthBlood - Registro de glucosa</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: rgba(255, 255, 255, 0.06);
+      --borde: rgba(255, 255, 255, 0.12);
+      --texto: #eaf0ff;
+      --acento1: #ef4444;
+      --acento2: #f97316;
+      --bajo: #3b82f6;
+      --normal: #22c55e;
+      --alto: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--texto);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      top: -150px; right: -150px;
+      width: 450px; height: 450px;
+      border-radius: 50%;
+      background: var(--acento1);
+      filter: blur(130px);
+      opacity: 0.25;
+      z-index: -1;
+    }
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      background: linear-gradient(90deg, var(--acento1), var(--acento2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    header p { opacity: 0.7; }
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1rem 1.2rem 3rem;
+      display: grid;
+      gap: 1.2rem;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--borde);
+      border-radius: 16px;
+      padding: 1.3rem;
+      backdrop-filter: blur(10px);
+    }
+    .panel h2 { font-size: 1.15rem; margin-bottom: 1rem; }
+
+    /* Formulario */
+    .grid-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.9rem;
+    }
+    label { display: block; font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.25rem; }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.65rem 0.8rem;
+      border-radius: 10px;
+      border: 1px solid var(--borde);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--texto);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    select option { color: #111; }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--acento2);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+    }
+    textarea { resize: vertical; min-height: 44px; }
+    .full { grid-column: 1 / -1; }
+
+    /* Botones */
+    .btn {
+      padding: 0.7rem 1.4rem;
+      border: none;
+      border-radius: 50px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(90deg, var(--acento1), var(--acento2));
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(249, 115, 22, 0.45); }
+    .btn:active { transform: translateY(0) scale(0.97); }
+    .btn.sec {
+      background: transparent;
+      border: 1px solid var(--borde);
+      box-shadow: none;
+    }
+    .btn.sec:hover { background: var(--card); border-color: var(--acento2); }
+    .btn.peligro { border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
+    .acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+
+    /* Estadísticas */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.8rem;
+    }
+    .stat {
+      text-align: center;
+      padding: 0.9rem 0.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--borde);
+      background: rgba(255, 255, 255, 0.04);
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    .stat:hover { transform: translateY(-4px); border-color: var(--acento2); }
+    .stat b { display: block; font-size: 1.6rem; }
+    .stat span { font-size: 0.8rem; opacity: 0.7; }
+
+    canvas { width: 100%; height: 220px; display: block; }
+
+    /* Filtros */
+    .filtros { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1rem; }
+    .filtros div { flex: 1; min-width: 150px; }
+
+    /* Tabla */
+    .tabla-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    th, td { padding: 0.65rem 0.6rem; text-align: left; border-bottom: 1px solid var(--borde); }
+    th { font-size: 0.8rem; text-transform: uppercase; opacity: 0.65; }
+    tbody tr { transition: background 0.2s; }
+    tbody tr:hover { background: rgba(255, 255, 255, 0.06); }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.7rem;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .badge.bajo { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+    .badge.normal { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .badge.alto { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: transform 0.2s;
+    }
+    .del:hover { transform: scale(1.3) rotate(8deg); }
+    .vacio { text-align: center; padding: 1.5rem; opacity: 0.6; }
+
+    .aviso { font-size: 0.8rem; opacity: 0.6; text-align: center; padding: 0 1rem 2rem; }
+    .leyenda { font-size: 0.8rem; opacity: 0.75; margin-top: 0.6rem; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🩸 healthBlood</h1>
+    <p>Registro de glucosa</p>
+  </header>
+
+  <main>
+    <!-- Formulario -->
+    <section class="panel">
+      <h2>Nuevo registro</h2>
+      <div class="grid-form">
+        <div>
+          <label for="valor">Glucosa (mg/dL)</label>
+          <input type="number" id="valor" min="10" max="900" placeholder="Ej. 95">
+        </div>
+        <div>
+          <label for="fecha">Fecha y hora</label>
+          <input type="datetime-local" id="fecha">
+        </div>
+        <div>
+          <label for="momento">Momento</label>
+          <select id="momento">
+            <option>En ayunas</option>
+            <option>Antes de comer</option>
+            <option>Después de comer</option>
+            <option>Antes de dormir</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div class="full">
+          <label for="notas">Notas (opcional)</label>
+          <textarea id="notas" placeholder="Comida, ejercicio, medicamento, cómo te sentías..."></textarea>
+        </div>
+      </div>
+      <div class="acciones">
+        <button class="btn" id="btnGuardar">Guardar registro</button>
+      </div>
+    </section>
+
+    <!-- Estadísticas -->
+    <section class="panel">
+      <h2>Resumen</h2>
+      <div class="stats">
+        <div class="stat"><b id="sTotal">0</b><span>Registros</span></div>
+        <div class="stat"><b id="sProm">--</b><span>Promedio</span></div>
+        <div class="stat"><b id="sMin">--</b><span>Mínimo</span></div>
+        <div class="stat"><b id="sMax">--</b><span>Máximo</span></div>
+        <div class="stat"><b id="sRango">--</b><span>% en rango</span></div>
+      </div>
+    </section>
+
+    <!-- Gráfica -->
+    <section class="panel">
+      <h2>Últimos 20 registros</h2>
+      <canvas id="grafica"></canvas>
+      <p class="leyenda">Rango de referencia usado: bajo &lt; 70 · en rango 70–140 · alto &gt; 140 mg/dL.</p>
+    </section>
+
+    <!-- Historial -->
+    <section class="panel">
+      <h2>Historial</h2>
+      <div class="filtros">
+        <div>
+          <label for="fMomento">Filtrar por momento</label>
+          <select id="fMomento">
+            <option value="">Todos</option>
+            <option>En ayunas</option>
+            <option>Antes de comer</option>
+            <option>Después de comer</option>
+            <option>Antes de dormir</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label for="fDesde">Desde</label>
+          <input type="date" id="fDesde">
+        </div>
+        <div>
+          <label for="fHasta">Hasta</label>
+          <input type="date" id="fHasta">
+        </div>
+      </div>
+
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Glucosa</th>
+              <th>Momento</th>
+              <th>Notas</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cuerpo"></tbody>
+        </table>
+      </div>
+
+      <div class="acciones">
+        <button class="btn sec" id="btnCSV">Exportar CSV</button>
+        <button class="btn sec" id="btnJSON">Exportar respaldo (JSON)</button>
+        <button class="btn sec" id="btnImportar">Importar respaldo</button>
+        <button class="btn sec peligro" id="btnBorrar">Borrar todo</button>
+        <input type="file" id="archivo" accept=".json" hidden>
+      </div>
+    </section>
+  </main>
+
+  <p class="aviso">
+    healthBlood es solo una herramienta de registro personal y no sustituye la orientación de un profesional de la salud.
+    Los datos se guardan únicamente en este navegador: haz respaldos con frecuencia.
+  </p>
+
+<script>
+  const KEY = "healthBlood_registros";
+  let registros = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- Almacenamiento ---------- */
+  function cargar() {
+    try {
+      const datos = JSON.parse(localStorage.getItem(KEY));
+      registros = Array.isArray(datos) ? datos : [];
+    } catch (e) {
+      registros = [];
+    }
+  }
+
+  function guardar() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(registros));
+    } catch (e) {
+      alert("No se pudo guardar en el navegador.");
+    }
+  }
+
+  /* ---------- Utilidades ---------- */
+  function ahoraLocal() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  }
+
+  function clase(v) {
+    if (v < 70) return "bajo";
+    if (v > 140) return "alto";
+    return "normal";
+  }
+
+  function formatoFecha(iso) {
+    const d = new Date(iso);
+    return d.toLocaleString("es-MX", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
+
+  function filtrados() {
+    const m = $("fMomento").value;
+    const desde = $("fDesde").value ? new Date($("fDesde").value + "T00:00:00") : null;
+    const hasta = $("fHasta").value ? new Date($("fHasta").value + "T23:59:59") : null;
+    return registros
+      .filter((r) => !m || r.momento === m)
+      .filter((r) => !desde || new Date(r.fecha) >= desde)
+      .filter((r) => !hasta || new Date(r.fecha) <= hasta)
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  }
+
+  /* ---------- Render ---------- */
+  function renderTabla() {
+    const cuerpo = $("cuerpo");
+    cuerpo.innerHTML = "";
+    const lista = filtrados();
+
+    if (lista.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 5;
+      td.className = "vacio";
+      td.textContent = "Aún no hay registros.";
+      tr.appendChild(td);
+      cuerpo.appendChild(tr);
+      return;
+    }
+
+    lista.forEach((r) => {
+      const tr = document.createElement("tr");
+
+      const tdF = document.createElement("td");
+      tdF.textContent = formatoFecha(r.fecha);
+
+      const tdV = document.createElement("td");
+      const b = document.createElement("span");
+      b.className = "badge " + clase(r.valor);
+      b.textContent = r.valor + " mg/dL";
+      tdV.appendChild(b);
+
+      const tdM = document.createElement("td");
+      tdM.textContent = r.momento;
+
+      const tdN = document.createElement("td");
+      tdN.textContent = r.notas || "—";
+
+      const tdD = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.className = "del";
+      btn.title = "Eliminar";
+      btn.textContent = "🗑️";
+      btn.addEventListener("click", () => eliminar(r.id));
+      tdD.appendChild(btn);
+
+      tr.append(tdF, tdV, tdM, tdN, tdD);
+      cuerpo.appendChild(tr);
+    });
+  }
+
+  function renderStats() {
+    const vals = registros.map((r) => r.valor);
+    $("sTotal").textContent = vals.length;
+    if (vals.length === 0) {
+      ["sProm", "sMin", "sMax", "sRango"].forEach((id) => ($(id).textContent = "--"));
+      return;
+    }
+    const prom = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const enRango = vals.filter((v) => v >= 70 && v <= 140).length;
+    $("sProm").textContent = prom.toFixed(0);
+    $("sMin").textContent = Math.min(...vals);
+    $("sMax").textContent = Math.max(...vals);
+    $("sRango").textContent = Math.round((enRango / vals.length) * 100) + "%";
+  }
+
+  function renderGrafica() {
+    const canvas = $("grafica");
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const datos = [...registros]
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      .slice(-20);
+
+    if (datos.length < 2) {
+      ctx.fillStyle = "rgba(234,240,255,0.5)";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Agrega al menos 2 registros para ver la gráfica", w / 2, h / 2);
+      return;
+    }
+
+    const pad = { l: 40, r: 15, t: 15, b: 25 };
+    const maxV = Math.max(200, ...datos.map((d) => d.valor)) + 10;
+    const minV = Math.min(50, ...datos.map((d) => d.valor)) - 10;
+    const X = (i) => pad.l + (i * (w - pad.l - pad.r)) / (datos.length - 1);
+    const Y = (v) => pad.t + (1 - (v - minV) / (maxV - minV)) * (h - pad.t - pad.b);
+
+    // Zona en rango
+    ctx.fillStyle = "rgba(34,197,94,0.10)";
+    ctx.fillRect(pad.l, Y(140), w - pad.l - pad.r, Y(70) - Y(140));
+
+    // Líneas guía
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.fillStyle = "rgba(234,240,255,0.6)";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    [70, 100, 140, 180].forEach((v) => {
+      if (v < minV || v > maxV) return;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, Y(v));
+      ctx.lineTo(w - pad.r, Y(v));
+      ctx.stroke();
+      ctx.fillText(v, pad.l - 6, Y(v) + 4);
+    });
+
+    // Línea
+    const grad = ctx.createLinearGradient(pad.l, 0, w - pad.r, 0);
+    grad.addColorStop(0, "#ef4444");
+    grad.addColorStop(1, "#f97316");
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    datos.forEach((d, i) => (i === 0 ? ctx.moveTo(X(i), Y(d.valor)) : ctx.lineTo(X(i), Y(d.valor))));
+    ctx.stroke();
+
+    // Puntos
+    const colores = { bajo: "#3b82f6", normal: "#22c55e", alto: "#ef4444" };
+    datos.forEach((d, i) => {
+      ctx.fillStyle = colores[clase(d.valor)];
+      ctx.beginPath();
+      ctx.arc(X(i), Y(d.valor), 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function renderTodo() {
+    renderTabla();
+    renderStats();
+    renderGrafica();
+  }
+
+  /* ---------- Acciones ---------- */
+  function agregar() {
+    const valor = parseFloat($("valor").value);
+    const fecha = $("fecha").value;
+
+    if (isNaN(valor) || valor < 10 || valor > 900) {
+      alert("Escribe un valor de glucosa válido (entre 10 y 900 mg/dL).");
+      return;
+    }
+    if (!fecha) {
+      alert("Elige la fecha y la hora.");
+      return;
+    }
+
+    registros.push({
+      id: Date.now() + Math.random().toString(36).slice(2, 7),
+      valor: Math.round(valor),
+      fecha: new Date(fecha).toISOString(),
+      momento: $("momento").value,
+      notas: $("notas").value.trim()
+    });
+
+    guardar();
+    $("valor").value = "";
+    $("notas").value = "";
+    $("fecha").value = ahoraLocal();
+    renderTodo();
+    $("valor").focus();
+  }
+
+  function eliminar(id) {
+    if (!confirm("¿Eliminar este registro?")) return;
+    registros = registros.filter((r) => r.id !== id);
+    guardar();
+    renderTodo();
+  }
+
+  function descargar(nombre, contenido, tipo) {
+    const blob = new Blob([contenido], { type: tipo });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombre;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportarCSV() {
+    if (registros.length === 0) return alert("No hay registros para exportar.");
+    const filas = [["Fecha", "Glucosa (mg/dL)", "Momento", "Notas"]];
+    [...registros]
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      .forEach((r) => {
+        filas.push([new Date(r.fecha).toLocaleString("es-MX"), r.valor, r.momento, r.notas || ""]);
+      });
+    const csv = filas
+      .map((f) => f.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(","))
+      .join("\n");
+    descargar("healthBlood.csv", "\ufeff" + csv, "text/csv;charset=utf-8");
+  }
+
+  function exportarJSON() {
+    if (registros.length === 0) return alert("No hay registros para respaldar.");
+    descargar("healthBlood-respaldo.json", JSON.stringify(registros, null, 2), "application/json");
+  }
+
+  function importarJSON(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const lector = new FileReader();
+    lector.onload = () => {
+      try {
+        const datos = JSON.parse(lector.result);
+        if (!Array.isArray(datos)) throw new Error("Formato inválido");
+        const validos = datos.filter(
+          (r) => r && typeof r.valor === "number" && r.fecha && !isNaN(new Date(r.fecha))
+        );
+        const ids = new Set(registros.map((r) => r.id));
+        let nuevos = 0;
+        validos.forEach((r) => {
+          const id = r.id || Date.now() + Math.random().toString(36).slice(2, 7);
+          if (!ids.has(id)) {
+            registros.push({
+              id,
+              valor: r.valor,
+              fecha: new Date(r.fecha).toISOString(),
+              momento: r.momento || "Otro",
+              notas: r.notas || ""
+            });
+            nuevos++;
+          }
+        });
+        guardar();
+        renderTodo();
+        alert("Se importaron " + nuevos + " registros nuevos.");
+      } catch (err) {
+        alert("El archivo no es un respaldo válido de healthBlood.");
+      }
+      e.target.value = "";
+    };
+    lector.readAsText(file);
+  }
+
+  function borrarTodo() {
+    if (registros.length === 0) return;
+    if (!confirm("Esto borrará TODOS los registros. ¿Continuar?")) return;
+    registros = [];
+    guardar();
+    renderTodo();
+  }
+
+  /* ---------- Inicio ---------- */
+  $("fecha").value = ahoraLocal();
+  $("btnGuardar").addEventListener("click", agregar);
+  $("btnCSV").addEventListener("click", exportarCSV);
+  $("btnJSON").addEventListener("click", exportarJSON);
+  $("btnImportar").addEventListener("click", () => $("archivo").click());
+  $("archivo").addEventListener("change", importarJSON);
+  $("btnBorrar").addEventListener("click", borrarTodo);
+  ["fMomento", "fDesde", "fHasta"].forEach((id) => $(id).addEventListener("change", renderTabla));
+  $("valor").addEventListener("keydown", (e) => { if (e.key === "Enter") agregar(); });
+  window.addEventListener("resize", renderGrafica);
+
+  cargar();
+  renderTodo();
+</script>
+</body>
+</html>
