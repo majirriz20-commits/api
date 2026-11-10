@@ -26,14 +26,14 @@ public class ConectionMySql {
         String url = "jdbc:mysql://" + host + ":" + port + "/" + bdName;
         String parametros = "?allowPublicKeyRetrieval=true&useSSL=false&useUnicode=true&characterEncoding=utf-8";
         
-        try{
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            conn = DriverManager.getConnection(url + parametros, user, password);
-            return conn; 
-        } catch (Exception e){
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        try {
+        // Tu código actual de conexión
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        return DriverManager.getConnection(url, user, password);
+    } catch (Exception e) {
+        System.out.println("Base de datos no disponible. Ejecutando sin BD: " + e.getMessage());
+        return null; // Retorna null para que la app siga funcionando sin trabarse
+    }
     }
     
     public void close(){
