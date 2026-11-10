@@ -17,11 +17,11 @@ public class ConectionMySql {
     
     public Connection open(){
         // Detectar variables de entorno de Railway (si existen), o usar los valores locales por defecto
-        String host = System.getenv("MYSQLHOST") != null ? System.getenv("MYSQLHOST") : "127.0.0.1";
-        String port = System.getenv("MYSQLPORT") != null ? System.getenv("MYSQLPORT") : "3306";
-        String bdName = System.getenv("MYSQLDATABASE") != null ? System.getenv("MYSQLDATABASE") : "glucosa_api";
-        String user = System.getenv("MYSQLUSER") != null ? System.getenv("MYSQLUSER") : "admin";
-        String password = System.getenv("MYSQLPASSWORD") != null ? System.getenv("MYSQLPASSWORD") : "root";
+        String host = envOrDefault("MYSQLHOST", "127.0.0.1");
+        String port = envOrDefault("MYSQLPORT", "3306");
+        String bdName = envOrDefault("MYSQLDATABASE", "glucosa_api");
+        String user = envOrDefault("MYSQLUSER", "admin");
+        String password = envOrDefault("MYSQLPASSWORD", "root");
         
         String url = "jdbc:mysql://" + host + ":" + port + "/" + bdName;
         String parametros = "?allowPublicKeyRetrieval=true&useSSL=false&useUnicode=true&characterEncoding=utf-8";
@@ -44,5 +44,11 @@ public class ConectionMySql {
                 e.printStackTrace();
             }
         }
+    }
+    
+    // Devuelve el valor de la variable de entorno, o el valor por defecto si es nula o vacía
+    private static String envOrDefault(String name, String defaultValue){
+        String value = System.getenv(name);
+        return (value != null && !value.trim().isEmpty()) ? value : defaultValue;
     }
 }
